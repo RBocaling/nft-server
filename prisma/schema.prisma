@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  FUNERAL_SERVICE
+  ADMIN
+}
+
+enum Size {
+  EXTRA_SMALL
+  SMALL
+  MEDIUM
+  LARGE
+  EXTRA_LARGE
+}
+
+enum ServiceType {
+  FLOWERS
+  CASKET
+  RENT_MEMORIAL
+  FULL_PACKAGE
+  ADDITIONAL
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  PREPARING_ITEMS
+  ON_THE_WAY
+  COMPLETED
+  CANCELED
+}
+
+model User {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  password       String
+  username       String @unique
+  role           UserRole
+  isEmailVerification Boolean?
+  isEmailCode  String?
+  validIdUrl     String?
+  selfPictureUrl String?
+  bussinessPermit String?
+  sanitaryPermit String?
+  embalmerLicense String?
+  profileUrl String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customers        Customer[]
+  funeralServices  FuneralService[]
+  messagesSent     Message[]        @relation("SentMessages")
+  messagesReceived Message[]        @relation("ReceivedMessages")
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  phone     String
+  location     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  familyAsOwner        FamilyCustomer[] @relation("OwnerRelation")
+  familyAsMember       FamilyCustomer[] @relation("FamilyMemberRelation")
+  bookings Booking[]
+}
+
+model FuneralService {
+  id               Int      @id @default(autoincrement())
+  firstName        String
+  lastName         String
+  location         String
+  phone            String
+  funeralName      String
+  personalEncharge String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  userId           Int
+  isCustom3dCasket Boolean
+  user             User     @relation(fields: [userId], references: [id])
+
+  services Service[]
+  bookings Booking[]
+  funeralAvailablePayments FuneralAvailablePayment[]
+}
+
+model FuneralAvailablePayment {
+  id                   Int      @id @default(autoincrement())
+  paymentInfoImageUrl String?
+  paymentName String
+  paymentType String
+  paymentNumber        String
+  funeralServiceId  Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  funeralService   FuneralService @relation(fields: [funeralServiceId], references: [id])
+}
+
+model Service {
+  id               Int            @id @default(autoincrement())
+  name             String
+  description      String
+  serviceType      ServiceType
+  funeralServiceId Int
+  funeralService   FuneralService @relation(fields: [funeralServiceId], references: [id])
+  imgUrl     String
+  casketDetails CasketDetail[]
+  flowerDetails FlowerDetail[]
+  additionalDetails AdditionalDetail[]
+  fullPacakge FullPackage[]
+
+
+  serviceBookings ServiceBooking[]
+}
+
+
+model FullPackage {
+  
+  id                        Int                 @id @default(autoincrement())
+  serviceId Int
+  title          String
+  imageUrl                  String
+  price                     Float
+  details                   FullPackageDetail[]
+  service    Service @relation(fields: [serviceId], references: [id])
+   bookings          Booking[] 
+}
+
+model FullPackageDetail {
+  id            Int         @id @default(autoincrement())
+  description         String
+  fullPackageId Int
+  fullPackage   FullPackage @relation(fields: [fullPackageId], references: [id])
+  
+}
+
+model CasketDetail {
+  id         Int     @id @default(autoincrement())
+  serviceId  Int
+  service    Service @relation(fields: [serviceId], references: [id])
+  color      String
+  size       Size
+  casketType String?
+  price      Float
+    image_url String?
+
+
+  selectedInServiceBookings ServiceBooking[] @relation("SelectedCasketDetail")
+}
+
+
+model FlowerDetail {
+  id         Int        @id @default(autoincrement())
+  serviceId  Int
+  service    Service    @relation(fields: [serviceId], references: [id])
+  size       Size
+  flowerType String?
+  price      Float
+    image_url String?
+
+
+  selectedInServiceBookings ServiceBooking[] @relation("SelectedFlowerDetail")
+}
+
+
+
+model Booking {
+  id                 Int                  @id @default(autoincrement())
+  customerId         Int
+  funeralServiceId   Int
+  bookingStatus      BookingStatus
+  bookingDate        DateTime             @default(now())
+  location           String
+  appointmentDate    String
+  hospitalDetails    String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  customer           Customer             @relation(fields: [customerId], references: [id])
+  funeralService     FuneralService       @relation(fields: [funeralServiceId], references: [id])
+  serviceBookings    ServiceBooking[]
+  conversation       Conversation?
+  fullPackageId      Int?
+  customCasketDetail CustomCasketDetail[]
+  fullPackage        FullPackage?       @relation(fields: [fullPackageId], references: [id]) 
+  additionalBookings BookingAdditionalDetail[]
+}
+model BookingAdditionalDetail {
+  id            Int              @id @default(autoincrement())
+  bookingId     Int
+  additionalId  Int
+
+  booking       Booking          @relation(fields: [bookingId], references: [id])
+  additional    AdditionalDetail @relation(fields: [additionalId], references: [id])
+}
+
+model AdditionalDetail {
+  id                 Int                     @id @default(autoincrement())
+  serviceId          Int
+  service            Service                 @relation(fields: [serviceId], references: [id])
+  additionalImageUrl String
+  description        String
+  price              Float
+
+  additionalBookings BookingAdditionalDetail[]
+}
+
+
+model CustomCasketDetail {
+  id             Int     @id @default(autoincrement())
+  material       String
+  color          String
+  width          Float
+  length         Float
+  height         Float
+  additionalCost Float
+  bookingId      Int
+  booking        Booking @relation(fields: [bookingId], references: [id])
+}
+
+model ServiceBooking {
+  id                     Int  @id @default(autoincrement())
+  bookingId              Int
+  serviceId              Int
+  selectedCasketDetailId Int?
+  selectedFlowerDetailId Int?
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  selectedCasketDetail CasketDetail? @relation("SelectedCasketDetail", fields: [selectedCasketDetailId], references: [id])
+  selectedFlowerDetail FlowerDetail? @relation("SelectedFlowerDetail", fields: [selectedFlowerDetailId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Conversation {
+  id        Int       @id @default(autoincrement())
+  bookingId Int       @unique
+  booking   Booking   @relation(fields: [bookingId], references: [id])
+  messages  Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id               Int     @id @default(autoincrement())
+  content          String?
+  attachedImageUrl String?
+  senderId         Int
+  receiverId       Int
+  conversationId   Int
+
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id])
+  receiver     User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FamilyCustomer {
+  id                    Int      @id @default(autoincrement())
+  description           String?
+  relation              String?
+  
+  ownerCustomerId       Int
+  ownerCustomer         Customer @relation("OwnerRelation", fields: [ownerCustomerId], references: [id])
+
+  familyMemberCustomerId Int
+  familyMemberCustomer   Customer @relation("FamilyMemberRelation", fields: [familyMemberCustomerId], references: [id])
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+
